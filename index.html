@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Proyecto Mapbox Actualizado</title>
+    <title>Proyecto Mapbox - Ubicación en Tiempo Real</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -35,8 +35,10 @@
             z-index: 1;
             font-family: Arial;
             color: white;
-            min-width: 150px;
+            min-width: 180px;
         }
+
+        span { font-weight: bold; }
     </style>
 </head>
 <body>
@@ -47,9 +49,9 @@
 </div>
 
 <div id="infoPanel">
-    <p><strong>Latitud:</strong> <span id="latWeb">-</span></p>
-    <p><strong>Longitud:</strong> <span id="lonWeb">-</span></p>
-    <p><strong>Estado:</strong> <span id="estadoWeb">CARGANDO...</span></p>
+    <p><strong>Latitud:</strong> <span id="latWeb">Esperando...</span></p>
+    <p><strong>Longitud:</strong> <span id="lonWeb">Esperando...</span></p>
+    <p><strong>Estado:</strong> <span id="estadoWeb">SIN DATOS</span></p>
 </div>
 
 <div id="map"></div>
@@ -66,7 +68,7 @@
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [-68.1193, -16.4897], // Coordenadas iniciales
+        center: [-68.1193, -16.4897], 
         zoom: 12
     });
 
@@ -85,7 +87,7 @@
         appId: "1:285962816858:web:a9500ffeb2b5e19f2b3763"
     };
 
-    // Inicializar Firebase (Ahora con librerías compat, 'firebase' ya no es undefined)
+    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     const ubicacionRef = database.ref('ubicacion_actual');
@@ -93,33 +95,35 @@
     // --- ESCUCHAR CAMBIOS EN TIEMPO REAL ---
     ubicacionRef.on('value', (snapshot) => {
         const data = snapshot.val();
+        console.log("Datos recibidos de Firebase:", data);
         
-        if (data && data.latitud && data.longitud) {
-            const lat = parseFloat(data.latitud);
-            const lng = parseFloat(data.longitud);
+        // CORRECCIÓN AQUÍ: Usamos data.lat y data.lng tal como están en tu base de datos
+        if (data && data.lat !== undefined && data.lng !== undefined) {
+            const lat = parseFloat(data.lat);
+            const lng = parseFloat(data.lng);
 
             // Actualizar textos en el panel
             document.getElementById("latWeb").textContent = lat.toFixed(6);
             document.getElementById("lonWeb").textContent = lng.toFixed(6);
 
-            // Actualizar etiqueta de estado
+            // Manejo de estado: si no existe "activo", por defecto es true
             const estadoEl = document.getElementById("estadoWeb");
-            if (data.activo) {
-                estadoEl.textContent = "🟢 ACTIVO";
-                estadoEl.style.color = "lime";
-            } else {
+            if (data.activo === false) {
                 estadoEl.textContent = "🔴 INACTIVO";
                 estadoEl.style.color = "red";
+            } else {
+                estadoEl.textContent = "🟢 ACTIVO";
+                estadoEl.style.color = "lime";
             }
 
-            // Mover el mapa suavemente a la nueva ubicación
+            // Mover el mapa suavemente
             map.flyTo({
                 center: [lng, lat],
                 zoom: 17,
                 essential: true
             });
 
-            // Crear o mover el marcador
+            // Actualizar o crear marcador
             if (marcador) {
                 marcador.setLngLat([lng, lat]);
             } else {
@@ -128,11 +132,11 @@
                     .addTo(map);
             }
         } else {
-            document.getElementById("estadoWeb").textContent = "Sin datos en Firebase";
+            document.getElementById("estadoWeb").textContent = "Esperando lat/lng...";
         }
     }, (error) => {
-        console.error("Error al leer Firebase:", error);
-        document.getElementById("estadoWeb").textContent = "Error de conexión";
+        console.error("Error de Firebase:", error);
+        document.getElementById("estadoWeb").textContent = "Error de permisos";
     });
 </script>
 
