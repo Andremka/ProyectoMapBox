@@ -10,14 +10,16 @@
         #map { width: 100%; height: 100vh; }
         .titulo {
             position: absolute; top: 10px; left: 10px;
-            background: rgba(58, 65, 130, 0.9); color: white;
-            padding: 10px; border-radius: 8px; z-index: 10; font-family: sans-serif;
+            background: rgba(58, 65, 130, 0.95); color: white;
+            padding: 10px 15px; border-radius: 8px; z-index: 10; font-family: sans-serif;
         }
         #infoPanel {
             position: absolute; bottom: 20px; left: 20px;
-            background: rgba(58, 65, 130, 0.9); padding: 15px;
+            background: rgba(58, 65, 130, 0.95); padding: 15px;
             border-radius: 10px; color: white; z-index: 10; font-family: sans-serif;
+            min-width: 200px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
+        .valor { color: #00fbff; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -28,9 +30,9 @@
 </div>
 
 <div id="infoPanel">
-    <p>Lat: <span id="latWeb">...</span></p>
-    <p>Lng: <span id="lonWeb">...</span></p>
-    <p>Estado: <span id="estadoWeb">CONECTANDO...</span></p>
+    <p>Lat: <span id="latWeb" class="valor">Esperando...</span></p>
+    <p>Lng: <span id="lonWeb" class="valor">Esperando...</span></p>
+    <p>Estado: <span id="estadoWeb" style="font-weight:bold;">CONECTANDO...</span></p>
 </div>
 
 <div id="map"></div>
@@ -40,6 +42,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <script>
+    // 1. Mapbox Setup
     mapboxgl.accessToken = 'pk.eyJ1IjoibWthMjAzMTk3MyIsImEiOiJjbW04ZWNubTAwY3RrMnBvOXh6bmVid2Z6In0.q7TJCtjkdpz9b9WuvFpzhA';
     
     const map = new mapboxgl.Map({
@@ -51,6 +54,7 @@
 
     let marcador = null;
 
+    // 2. Firebase Setup
     const firebaseConfig = {
         apiKey: "AIzaSyCOilaXprOwM7oTRUqXaH8rDpDQbL_Sypc",
         authDomain: "mapboxmka.firebaseapp.com",
@@ -63,47 +67,49 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    
-    // ESCUCHA LA RAÍZ POR SI ACASO LA CARPETA ESTÁ MAL ESCRITA
-    database.ref('ubicacion_actual').on('value', (snapshot) => {
+    const ubicacionRef = database.ref('ubicacion_actual');
+
+    // 3. Escucha de datos
+    ubicacionRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        console.log("DATOS RECIBIDOS:", data);
+        console.log("Procesando datos:", data);
 
-        if (!data) {
-            document.getElementById("estadoWeb").textContent = "BASE DE DATOS VACÍA";
-            return;
-        }
+        if (data && data.latitud && data.longitud) {
+            // Convertir a número por seguridad
+            const lat = parseFloat(data.latitud);
+            const lng = parseFloat(data.longitud);
 
-        // --- BUSCADOR AUTOMÁTICO DE COORDENADAS ---
-        // Esto busca latitud/lat y longitud/lng sin importar mayúsculas o minúsculas
-        let lat = null;
-        let lng = null;
+            // ACTUALIZAR TEXTOS (Asegúrate que los IDs coincidan)
+            document.getElementById("latWeb").textContent = lat.toFixed(6);
+            document.getElementById("lonWeb").textContent = lng.toFixed(6);
+            
+            const estadoEl = document.getElementById("estadoWeb");
+            estadoEl.textContent = "🟢 ACTIVO";
+            estadoEl.style.color = "lime";
 
-        for (let key in data) {
-            let k = key.toLowerCase();
-            if (k.includes('lat')) lat = parseFloat(data[key]);
-            if (k.includes('ln') || k.includes('lo')) lng = parseFloat(data[key]);
-        }
-
-        if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-            // ACTUALIZAR PANEL
-            document.getElementById("latWeb").innerText = lat.toFixed(6);
-            document.getElementById("lonWeb").innerText = lng.toFixed(6);
-            document.getElementById("estadoWeb").innerText = "🟢 ACTIVO";
-            document.getElementById("estadoWeb").style.color = "lime";
-
-            // ACTUALIZAR MAPA
+            // ACTUALIZAR MARCADOR Y MAPA
+            // Nota: Mapbox usa [Longitud, Latitud]
             if (marcador) {
                 marcador.setLngLat([lng, lat]);
             } else {
-                marcador = new mapboxgl.Marker({ color: 'red' }).setLngLat([lng, lat]).addTo(map);
+                marcador = new mapboxgl.Marker({ color: 'red' })
+                    .setLngLat([lng, lat])
+                    .addTo(map);
             }
-            map.flyTo({ center: [lng, lat], zoom: 16 });
+
+            map.flyTo({
+                center: [lng, lat],
+                zoom: 17,
+                essential: true
+            });
 
         } else {
-            document.getElementById("estadoWeb").textContent = "ERROR: LLAVES NO RECONOCIDAS";
-            console.error("No se encontraron campos lat/lng en:", data);
+            console.warn("Estructura de datos no válida:", data);
+            document.getElementById("estadoWeb").textContent = "DATOS INCOMPLETOS";
         }
+    }, (error) => {
+        console.error("Error de Firebase:", error);
+        document.getElementById("estadoWeb").textContent = "ERROR DE CONEXIÓN";
     });
 </script>
 </body>
