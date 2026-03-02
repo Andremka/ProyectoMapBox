@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <title>Proyecto Mapbox Actualizado</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
- 
+
     <!-- CSS Mapbox -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
- 
+
     <style>
         body { margin: 0; padding: 0; }
         #map { width: 100%; height: 100vh; }
- 
+
         .titulo {
             position: absolute;
             top: 10px;
             left: 10px;
-            background:rgb(58, 65, 130);
+            background: rgb(58, 65, 130);
             color: white;
             padding: 10px 15px;
             font-family: Arial, sans-serif;
@@ -24,131 +24,111 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             z-index: 1;
         }
+
+        #infoPanel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgb(58, 65, 130);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 1;
+            font-family: Arial;
+            color: white;
+        }
     </style>
 </head>
 <body>
- 
+
 <div class="titulo">
     <h3>Proyecto Mapbox</h3>
     <p>De: Andres Mamani Kantuta</p>
 </div>
-<div id="infoPanel" style="
-position:absolute;
-bottom:20px;
-left:20px;
-background:rgb(58, 65, 130);
-padding:15px;
-border-radius:10px;
-box-shadow:0 2px 8px rgba(0,0,0,0.3);
-z-index:1;
-font-family:Arial;
-color: white;
-">
- 
-<p><strong>Latitud:</strong> <span id="latWeb">-</span></p>
-<p><strong>Longitud:</strong> <span id="lonWeb">-</span></p>
-<p><strong>Estado:</strong> <span id="estadoWeb">INACTIVO</span></p>
- 
+
+<div id="infoPanel">
+    <p><strong>Latitud:</strong> <span id="latWeb">-</span></p>
+    <p><strong>Longitud:</strong> <span id="lonWeb">-</span></p>
+    <p><strong>Estado:</strong> <span id="estadoWeb">INACTIVO</span></p>
 </div>
- 
+
 <div id="map"></div>
- 
+
 <!-- JS Mapbox -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
- 
-<script type="module">
- 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
- 
-let map;
-let marcador;
- 
-// 🔥 MAPBOX TOKEN (EL TUYO CORRECTO)
-mapboxgl.accessToken = 'pk.eyJ1IjoibWthMjAzMTk3MyIsImEiOiJjbW04ZWNubTAwY3RrMnBvOXh6bmVid2Z6In0.q7TJCtjkdpz9b9WuvFpzhA';
- 
-map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/streets-v12',
-    center: [-68.1193, -16.4897],
-    zoom: 12
-});
- 
-map.addControl(new mapboxgl.NavigationControl());
- 
-// 🔥 FIREBASE CONFIG (LA TUYA)
-const firebaseConfig = {
-  apiKey: "AIzaSyCOilaXprOwM7oTRUqXaH8rDpDQbL_Sypc",
-  authDomain: "mapboxmka.firebaseapp.com",
-  databaseURL: "https://mapboxmka-default-rtdb.firebaseio.com",
-  projectId: "mapboxmka",
-  storageBucket: "mapboxmka.firebasestorage.app",
-  messagingSenderId: "285962816858",
-  appId: "1:285962816858:web:a9500ffeb2b5e19f2b3763"
-};
- 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
- 
-// 🔥 REFERENCIA SOLO A LA UBICACIÓN ACTUAL
-const ubicacionRef = ref(database, 'ubicacion_actual');
- 
-// 🔥 CUANDO EL MAPA ESTÉ LISTO
-map.on('load', () => {
- 
-    console.log("Mapa listo");
- 
-    onValue(ubicacionRef, (snapshot) => {
- 
-    const data = snapshot.val();
- 
-    if (data && data.latitud && data.longitud) {
- 
-        const lat = parseFloat(data.latitud);
-        const lng = parseFloat(data.longitud);
-       
- 
-        document.getElementById("latWeb").textContent = lat;
-        document.getElementById("lonWeb").textContent = lng;
- 
-        // Verificar si está activo (últimos 10 segundos)
-        const hora = Number(data.hora);
-        const ahora = Date.now();
- 
-        // Diferencia absoluta para evitar problemas de reloj
-        const diferencia = Math.abs(ahora - hora);
- 
-        console.log("Ahora:", ahora);
-        console.log("Hora Firebase:", hora);
-        console.log("Diferencia:", diferencia);
- 
-        if (data.activo === true) {
-            document.getElementById("estadoWeb").textContent = "🟢 ACTIVO";
-            document.getElementById("estadoWeb").style.color = "lime";
-        } else {
-            document.getElementById("estadoWeb").textContent = "🔴 INACTIVO";
-            document.getElementById("estadoWeb").style.color = "red";
+
+<!-- Firebase clásico (sin módulos) -->
+<script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js"></script>
+
+<script>
+    // 🔥 MAPBOX TOKEN
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWthMjAzMTk3MyIsImEiOiJjbW04ZWNubTAwY3RrMnBvOXh6bmVid2Z6In0.q7TJCtjkdpz9b9WuvFpzhA';
+
+    // Inicializar mapa
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-68.1193, -16.4897],
+        zoom: 12
+    });
+
+    map.addControl(new mapboxgl.NavigationControl());
+
+    let marcador = null;
+
+    // 🔥 CONFIGURACIÓN FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyCOilaXprOwM7oTRUqXaH8rDpDQbL_Sypc",
+        authDomain: "mapboxmka.firebaseapp.com",
+        databaseURL: "https://mapboxmka-default-rtdb.firebaseio.com",
+        projectId: "mapboxmka",
+        storageBucket: "mapboxmka.firebasestorage.app",
+        messagingSenderId: "285962816858",
+        appId: "1:285962816858:web:a9500ffeb2b5e19f2b3763"
+    };
+
+    // Inicializar Firebase clásico
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database(app);
+    const ubicacionRef = database.ref('ubicacion_actual');
+
+    // Escuchar cambios en Firebase
+    ubicacionRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.latitud && data.longitud) {
+            const lat = parseFloat(data.latitud);
+            const lng = parseFloat(data.longitud);
+
+            document.getElementById("latWeb").textContent = lat;
+            document.getElementById("lonWeb").textContent = lng;
+
+            // Estado activo/inactivo
+            if (Boolean(data.activo)) {
+                document.getElementById("estadoWeb").textContent = "🟢 ACTIVO";
+                document.getElementById("estadoWeb").style.color = "lime";
+            } else {
+                document.getElementById("estadoWeb").textContent = "🔴 INACTIVO";
+                document.getElementById("estadoWeb").style.color = "red";
+            }
+
+            // Actualizar mapa y marcador
+            map.flyTo({
+                center: [lng, lat],
+                zoom: 17,
+                essential: true
+            });
+
+            if (marcador) {
+                marcador.setLngLat([lng, lat]);
+            } else {
+                marcador = new mapboxgl.Marker({ color: 'red' })
+                    .setLngLat([lng, lat])
+                    .addTo(map);
+            }
         }
- 
-        map.flyTo({
-            center: [lng, lat],
-            zoom: 17,
-            essential: true
-        });
- 
-        if (marcador) {
-            marcador.setLngLat([lng, lat]);
-        } else {
-            marcador = new mapboxgl.Marker({ color: 'red' })
-                .setLngLat([lng, lat])
-                .addTo(map);
-        }
-    }
-});
- 
-});
- 
+    });
 </script>
- 
+
 </body>
 </html>
