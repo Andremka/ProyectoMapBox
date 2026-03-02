@@ -2,44 +2,22 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Proyecto Mapbox - Rastreo en Tiempo Real</title>
+    <title>Proyecto Mapbox - Localización GPS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
-
     <style>
         body { margin: 0; padding: 0; }
         #map { width: 100%; height: 100vh; }
-
         .titulo {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(58, 65, 130, 0.95);
-            color: white;
-            padding: 12px 20px;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 10;
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(58, 65, 130, 0.9); color: white;
+            padding: 10px; border-radius: 8px; z-index: 10; font-family: sans-serif;
         }
-
         #infoPanel {
-            position: absolute;
-            bottom: 30px;
-            left: 20px;
-            background: rgba(58, 65, 130, 0.95);
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            z-index: 10;
-            font-family: Arial, sans-serif;
-            color: white;
-            min-width: 200px;
+            position: absolute; bottom: 20px; left: 20px;
+            background: rgba(58, 65, 130, 0.9); padding: 15px;
+            border-radius: 10px; color: white; z-index: 10; font-family: sans-serif;
         }
-
-        .dato { font-weight: bold; color: #00e6ff; }
-        h3, p { margin: 5px 0; }
     </style>
 </head>
 <body>
@@ -50,33 +28,29 @@
 </div>
 
 <div id="infoPanel">
-    <p>Latitud: <span id="latWeb" class="dato">Esperando...</span></p>
-    <p>Longitud: <span id="lonWeb" class="dato">Esperando...</span></p>
-    <p>Estado: <span id="estadoWeb" style="font-weight:bold;">CONECTANDO...</span></p>
+    <p>Lat: <span id="latWeb">...</span></p>
+    <p>Lng: <span id="lonWeb">...</span></p>
+    <p>Estado: <span id="estadoWeb">CONECTANDO...</span></p>
 </div>
 
 <div id="map"></div>
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <script>
-    // 1. CONFIGURACIÓN MAPBOX
     mapboxgl.accessToken = 'pk.eyJ1IjoibWthMjAzMTk3MyIsImEiOiJjbW04ZWNubTAwY3RrMnBvOXh6bmVid2Z6In0.q7TJCtjkdpz9b9WuvFpzhA';
-
+    
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [-68.1193, -16.4897], 
+        center: [-68.1193, -16.4897],
         zoom: 12
     });
 
-    map.addControl(new mapboxgl.NavigationControl());
     let marcador = null;
 
-    // 2. CONFIGURACIÓN FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyCOilaXprOwM7oTRUqXaH8rDpDQbL_Sypc",
         authDomain: "mapboxmka.firebaseapp.com",
@@ -89,65 +63,48 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    const ubicacionRef = database.ref('ubicacion_actual');
-
-    // 3. LÓGICA DE ACTUALIZACIÓN
-    ubicacionRef.on('value', (snapshot) => {
+    
+    // ESCUCHA LA RAÍZ POR SI ACASO LA CARPETA ESTÁ MAL ESCRITA
+    database.ref('ubicacion_actual').on('value', (snapshot) => {
         const data = snapshot.val();
-        console.log("Datos recibidos:", data);
-        
-        if (data) {
-            // Intentamos obtener lat/lng sin importar el nombre que use tu celular
-            const rawLat = data.lat || data.latitud;
-            const rawLng = data.lng || data.longitud;
+        console.log("DATOS RECIBIDOS:", data);
 
-            if (rawLat !== undefined && rawLng !== undefined) {
-                // Convertir a número (por si vienen como texto)
-                const lat = parseFloat(rawLat);
-                const lng = parseFloat(rawLng);
-
-                // Validar que sean números válidos
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    
-                    // Actualizar Panel
-                    document.getElementById("latWeb").textContent = lat.toFixed(6);
-                    document.getElementById("lonWeb").textContent = lng.toFixed(6);
-                    
-                    const estadoEl = document.getElementById("estadoWeb");
-                    estadoEl.textContent = "🟢 ACTIVO";
-                    estadoEl.style.color = "lime";
-
-                    // Actualizar Mapa
-                    map.flyTo({
-                        center: [lng, lat],
-                        zoom: 17,
-                        speed: 1.2
-                    });
-
-                    // Actualizar Marcador
-                    if (marcador) {
-                        marcador.setLngLat([lng, lat]);
-                    } else {
-                        marcador = new mapboxgl.Marker({ color: 'red' })
-                            .setLngLat([lng, lat])
-                            .addTo(map);
-                    }
-                    return; // Salir con éxito
-                }
-            }
+        if (!data) {
+            document.getElementById("estadoWeb").textContent = "BASE DE DATOS VACÍA";
+            return;
         }
-        
-        // Si llega aquí es porque los datos no tienen el formato correcto
-        document.getElementById("estadoWeb").textContent = "🟠 DATOS INVÁLIDOS";
-        document.getElementById("estadoWeb").style.color = "orange";
-        console.warn("Estructura de datos no reconocida:", data);
 
-    }, (error) => {
-        console.error("Error de Firebase:", error);
-        document.getElementById("estadoWeb").textContent = "🔴 ERROR DE PERMISOS";
-        document.getElementById("estadoWeb").style.color = "red";
+        // --- BUSCADOR AUTOMÁTICO DE COORDENADAS ---
+        // Esto busca latitud/lat y longitud/lng sin importar mayúsculas o minúsculas
+        let lat = null;
+        let lng = null;
+
+        for (let key in data) {
+            let k = key.toLowerCase();
+            if (k.includes('lat')) lat = parseFloat(data[key]);
+            if (k.includes('ln') || k.includes('lo')) lng = parseFloat(data[key]);
+        }
+
+        if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+            // ACTUALIZAR PANEL
+            document.getElementById("latWeb").innerText = lat.toFixed(6);
+            document.getElementById("lonWeb").innerText = lng.toFixed(6);
+            document.getElementById("estadoWeb").innerText = "🟢 ACTIVO";
+            document.getElementById("estadoWeb").style.color = "lime";
+
+            // ACTUALIZAR MAPA
+            if (marcador) {
+                marcador.setLngLat([lng, lat]);
+            } else {
+                marcador = new mapboxgl.Marker({ color: 'red' }).setLngLat([lng, lat]).addTo(map);
+            }
+            map.flyTo({ center: [lng, lat], zoom: 16 });
+
+        } else {
+            document.getElementById("estadoWeb").textContent = "ERROR: LLAVES NO RECONOCIDAS";
+            console.error("No se encontraron campos lat/lng en:", data);
+        }
     });
 </script>
-
 </body>
 </html>
