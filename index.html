@@ -5,7 +5,6 @@
     <title>Proyecto Mapbox Actualizado</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- CSS Mapbox -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
 
     <style>
@@ -16,7 +15,7 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgb(58, 65, 130);
+            background: rgba(58, 65, 130, 0.9);
             color: white;
             padding: 10px 15px;
             font-family: Arial, sans-serif;
@@ -29,13 +28,14 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            background: rgb(58, 65, 130);
+            background: rgba(58, 65, 130, 0.9);
             padding: 15px;
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             z-index: 1;
             font-family: Arial;
             color: white;
+            min-width: 150px;
         }
     </style>
 </head>
@@ -49,27 +49,24 @@
 <div id="infoPanel">
     <p><strong>Latitud:</strong> <span id="latWeb">-</span></p>
     <p><strong>Longitud:</strong> <span id="lonWeb">-</span></p>
-    <p><strong>Estado:</strong> <span id="estadoWeb">INACTIVO</span></p>
+    <p><strong>Estado:</strong> <span id="estadoWeb">CARGANDO...</span></p>
 </div>
 
 <div id="map"></div>
 
-<!-- JS Mapbox -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
 
-<!-- Firebase clásico (sin módulos) -->
-<script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <script>
-    // 🔥 MAPBOX TOKEN
+    // --- CONFIGURACIÓN DE MAPBOX ---
     mapboxgl.accessToken = 'pk.eyJ1IjoibWthMjAzMTk3MyIsImEiOiJjbW04ZWNubTAwY3RrMnBvOXh6bmVid2Z6In0.q7TJCtjkdpz9b9WuvFpzhA';
 
-    // Inicializar mapa
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [-68.1193, -16.4897],
+        center: [-68.1193, -16.4897], // Coordenadas iniciales
         zoom: 12
     });
 
@@ -77,7 +74,7 @@
 
     let marcador = null;
 
-    // 🔥 CONFIGURACIÓN FIREBASE
+    // --- CONFIGURACIÓN DE FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyCOilaXprOwM7oTRUqXaH8rDpDQbL_Sypc",
         authDomain: "mapboxmka.firebaseapp.com",
@@ -88,37 +85,41 @@
         appId: "1:285962816858:web:a9500ffeb2b5e19f2b3763"
     };
 
-    // Inicializar Firebase clásico
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database(app);
+    // Inicializar Firebase (Ahora con librerías compat, 'firebase' ya no es undefined)
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
     const ubicacionRef = database.ref('ubicacion_actual');
 
-    // Escuchar cambios en Firebase
+    // --- ESCUCHAR CAMBIOS EN TIEMPO REAL ---
     ubicacionRef.on('value', (snapshot) => {
         const data = snapshot.val();
+        
         if (data && data.latitud && data.longitud) {
             const lat = parseFloat(data.latitud);
             const lng = parseFloat(data.longitud);
 
-            document.getElementById("latWeb").textContent = lat;
-            document.getElementById("lonWeb").textContent = lng;
+            // Actualizar textos en el panel
+            document.getElementById("latWeb").textContent = lat.toFixed(6);
+            document.getElementById("lonWeb").textContent = lng.toFixed(6);
 
-            // Estado activo/inactivo
-            if (Boolean(data.activo)) {
-                document.getElementById("estadoWeb").textContent = "🟢 ACTIVO";
-                document.getElementById("estadoWeb").style.color = "lime";
+            // Actualizar etiqueta de estado
+            const estadoEl = document.getElementById("estadoWeb");
+            if (data.activo) {
+                estadoEl.textContent = "🟢 ACTIVO";
+                estadoEl.style.color = "lime";
             } else {
-                document.getElementById("estadoWeb").textContent = "🔴 INACTIVO";
-                document.getElementById("estadoWeb").style.color = "red";
+                estadoEl.textContent = "🔴 INACTIVO";
+                estadoEl.style.color = "red";
             }
 
-            // Actualizar mapa y marcador
+            // Mover el mapa suavemente a la nueva ubicación
             map.flyTo({
                 center: [lng, lat],
                 zoom: 17,
                 essential: true
             });
 
+            // Crear o mover el marcador
             if (marcador) {
                 marcador.setLngLat([lng, lat]);
             } else {
@@ -126,7 +127,12 @@
                     .setLngLat([lng, lat])
                     .addTo(map);
             }
+        } else {
+            document.getElementById("estadoWeb").textContent = "Sin datos en Firebase";
         }
+    }, (error) => {
+        console.error("Error al leer Firebase:", error);
+        document.getElementById("estadoWeb").textContent = "Error de conexión";
     });
 </script>
 
